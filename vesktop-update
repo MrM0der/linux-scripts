@@ -1,0 +1,87 @@
+#!/bin/python3
+import requests
+from tqdm import tqdm
+import tarfile
+import os
+import shutil
+
+def get_latest_tag(repo_owner, repo_name):
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        latest_tag = data["tag_name"]
+        return latest_tag
+    else:
+        return None
+
+
+
+print('----- Vesktop Updater Linux -----')
+
+latest_tag = get_latest_tag("Vencord", "Vesktop")
+discordUrl = f"https://github.com/Vencord/Vesktop/releases/download/{latest_tag}/VencordDesktop-{latest_tag.replace('v','')}.tar.gz"
+downloadPath = "/tmp/discord.tar.gz"
+extractPath = "/tmp/discord-update"
+discordPath = "/opt/Vesktop/"
+
+print(discordUrl)
+
+def download(url: str, fname: str):
+    resp = requests.get(url, stream=True)
+    total = int(resp.headers.get('content-length', 0))
+    # Can also replace 'file' with a io.BytesIO object
+    with open(fname, 'wb') as file, tqdm(
+        desc=fname,
+        total=total,
+        unit='iB',
+        unit_scale=True,
+        unit_divisor=1024,
+    ) as bar:
+        for data in resp.iter_content(chunk_size=1024):
+            size = file.write(data)
+            bar.update(size)
+
+
+def archive(unpack, downloadPath, extractPath=False):
+    my_tar = tarfile.open(downloadPath)
+    if unpack == True:
+        print('File unpacking has begun...')
+        my_tar.extractall(extractPath)
+        print('File unpacking is over!')
+    return my_tar.getnames()[0]
+    my_tar.close()
+
+
+def tweak():
+    # os.remove(
+    #     f"{extractPath}/{archive(False, downloadPath, extractPath)}/resources/app.asar")
+    os.rename(f"{extractPath}/{archive(False, downloadPath, extractPath)}/vencorddesktop", f"{extractPath}/{archive(False, downloadPath, extractPath)}/vencorddesktop_exe")
+    print('Tweak done!')
+
+
+def discord_patch(path, discordPath):
+    discordname = archive(unpack=False, downloadPath=downloadPath)
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            try:
+                os.makedirs(os.path.join(root).replace(
+                    f'{extractPath}/{discordname}', discordPath))
+            except:
+                pass
+            # shutil.copy(os.path.join(root, file), f"/home/mrmoder/Desktop/discord/{os.path.join(root, file).replace(f'/tmp/discord-update/{discordname}/', '')}")
+            cppath1 = os.path.join(root, file)
+            cppath2 = f"{discordPath}/{os.path.join(root, file).replace(f'{extractPath}/{discordname}/', '')}"
+            os.system(f'''sudo cp "{cppath1}" "{cppath2}"''')
+    print('Successful patch!')
+
+
+def main():
+    download(discordUrl, downloadPath)
+    archive(unpack=True, downloadPath=downloadPath, extractPath=extractPath)
+    tweak()
+    discord_patch(f'{extractPath}/{archive(False, downloadPath)}', discordPath)
+    print('Done!')
+
+
+main()

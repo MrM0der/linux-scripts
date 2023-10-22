@@ -1,0 +1,54 @@
+#!/bin/python3
+import requests
+import os
+
+your_id = '1049305290526445579'
+contributor_id = '343383572805058560'
+old_badges_csv = 'https://gist.githubusercontent.com/Vendicated/51a3dd775f6920429ec6e9b735ca7f01/raw/badges.csv'
+badges_csv = "https://raw.githubusercontent.com/MrM0der/vencord-badges/main/badges.csv"
+renderer_path = "/home/mrmoder/.config/VencordDesktop/VencordDesktop/vencordDist/vencordDesktopRenderer.js"
+contributors_req = "https://raw.githubusercontent.com/Vendicated/Vencord/main/src/utils/constants.ts"
+
+
+def contributors(contributors_req):
+    r = requests.get(
+        contributors_req).text
+
+    rlist = r.split()
+    rid = 0
+    ids_list = []
+
+    while True:
+        try:
+            index = rlist.index('id:', rid)
+            ids_list.append(rlist[index + 1].replace(',', '').replace('n', ''))
+            rid = index + 1
+        except:
+            break
+
+    return ids_list
+
+
+def patcher(contributors, old_badges_csv, badges_csv, renderer, your_id, contributor_id):
+    f = open(renderer, 'r')
+    renderer_text = f.read()
+    f.close()
+
+    renderer_text = renderer_text.replace(old_badges_csv, badges_csv)
+    renderer_text = renderer_text.replace(contributor_id, your_id)
+
+    for i in contributors:
+        # print(i)
+        renderer_text = renderer_text.replace(i, '0')
+    f = open(renderer, 'w')
+    f.write(renderer_text)
+    f.close()
+
+
+patcher(contributors(contributors_req), old_badges_csv, badges_csv,
+        renderer_path, your_id, contributor_id)
+
+print('Done!')
+
+path = os.getcwd()
+os.system(f'/opt/Vesktop/vencorddesktop_exe')
