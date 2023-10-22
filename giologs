@@ -1,0 +1,18 @@
+#!/bin/python3
+import docker
+from threading import Thread
+from discord_webhook import DiscordWebhook
+client = docker.from_env()
+
+def dockerlogs(container_id):
+    container = client.containers.get(container_id)
+    containername = container.attrs['Name']
+
+    for line in container.logs(stream=True):
+        print(containername + " >>> " + line.strip().decode())
+
+
+
+for i in client.containers.list():
+    th = Thread(target=dockerlogs, args=(str(i)[12:-1], ))
+    th.start()

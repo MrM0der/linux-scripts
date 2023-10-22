@@ -1,0 +1,255 @@
+#!/bin/python3
+import discord
+from discord.ext import commands, tasks
+import requests
+import hashlib
+import urllib.parse
+import json
+import ast
+import docker
+from threading import Thread
+from discord_webhook import DiscordWebhook
+from discord.ui import Button, View
+import os
+import subprocess
+client = docker.from_env()
+
+userdb = {1049305290526445579: 10, 639022382497005568: 9, 419358385528504332: 7, 840680817890164737: 8, 565956261968085003: 2}
+
+f = open('token.txt', 'r')
+token = f.read().split()
+f.close()
+
+
+
+
+def sha256_sign(secret, message):
+    sha256 = hashlib.sha256()
+    sha256.update(f"{message}{secret}".encode())
+    return sha256.hexdigest()
+
+def muip_client(uid, msg):
+    url = "http://10.242.1.1:21051/api"
+    region = "dev_docker"
+    ticket = "GM"
+    command = "1116"
+    uid = uid
+    msg = msg
+    secret = token[0]
+
+    payload = {
+        "region": region,
+        "ticket": ticket,
+        "cmd": command,
+        "uid": uid,
+        "msg": msg
+    }
+
+    kvs = []
+    for key, value in payload.items():
+        kvs.append(f"{key}={value}")
+    kvs.sort()
+
+    qstr = "&".join(kvs)
+    sign = sha256_sign(secret, qstr)
+
+    params = {
+        "region": region,
+        "ticket": ticket,
+        "cmd": command,
+        "uid": uid,
+        "msg": msg,
+        "sign": sign
+    }
+
+    response = requests.get(url, params=params)
+    return response.content.decode()
+
+def dockerlogs(container_id):
+    container = client.containers.get(container_id)
+    containername = container.attrs['Name']
+
+    for line in container.logs(stream=True):
+        print(containername + " >>> " + line.strip().decode())
+        #if containername == "/32_dev-sdk-1":
+        	#webhook = DiscordWebhook(url="https://canary.discord.com/api/webhooks/1154660613813968956/5WEtWGVXKHF89W97xDgVIKDmDvElVVDYwaBkFGfR3zavAGRk8RDMPBcJB2hTDPeAlJgv", content=containername + " >>> " + line.strip().decode())
+        	#response = webhook.execute()
+
+for i in client.containers.list():
+    th = Thread(target=dockerlogs, args=(str(i)[12:-1], ))
+    th.start()
+
+intents = discord.Intents.all()
+
+bot = commands.Bot(command_prefix=commands.when_mentioned_or('`'), intents=intents)
+
+@bot.command()
+async def ping(ctx):
+    await ctx.send(f'Pong! Задержка: {round(bot.latency * 1000)}ms')
+    #print(token)
+
+@bot.command()
+async def muip(ctx, number: int, *args):
+    if ctx.author.id == 1049305290526445579:
+        command = ' '.join(args)
+        await ctx.send(f"Передан UID: {number}, команда: {command}")
+        await ctx.send(muip_client(number, command))
+    else:
+        await ctx.send('Эта команда доступна только администратору!')
+
+@bot.command()
+async def give(ctx, command: str, id: str, count='1'):
+    if ctx.author.id in userdb:
+        if command == 'item':
+            await ctx.send(f'Передан UID: {userdb[ctx.author.id]}, ID предмета: {id}, Количество: {count}.')
+            string = muip_client(uid=userdb[ctx.author.id], msg=f'item add {id} {count}')
+            res = json.loads(string)
+            if res['msg'] == 'recv from nodeserver timeout':
+                await ctx.send('Мне воздуху этот предмет давать? Или ты всё-таки зайдёшь в игру?')
+            elif res['msg'] == 'succ':
+                await ctx.send('Дала тебе этот предмет.')
+            else:
+                await ctx.send(res['msg'])
+        elif command == 'avatar':
+            await ctx.send(f'Передан UID: {userdb[ctx.author.id]}, ID аватара: {id}')
+            string = muip_client(uid=userdb[ctx.author.id], msg=f'avatar add {id}')
+            res = json.loads(string)
+            if res['msg'] == 'recv from nodeserver timeout':
+                await ctx.send('Мне воздуху этот аватар давать? Или ты всё-таки зайдёшь в игру?')
+            elif res['msg'] == 'succ':
+                await ctx.send('Дала тебе этот аватар.')
+            else:
+                await ctx.send(res['msg'])
+        elif command == 'mcoin':
+            await ctx.send(f'Передан UID: {userdb[ctx.author.id]}, Количество Кристаллов Сотворения: {id}')
+            string = muip_client(uid=userdb[ctx.author.id], msg=f'mcoin {id}')
+            res = json.loads(string)
+            if res['msg'] == 'recv from nodeserver timeout':
+                await ctx.send('Мне воздуху донат давать? Или ты всё-таки зайдёшь в игру?')
+            elif res['msg'] == 'succ':
+                await ctx.send('Дала тебе донат.')
+            else:
+                await ctx.send(res['msg'])
+        elif command == 'killself':
+            if id in ['1','2','3','4']:
+                await ctx.send(f'Передан UID: {userdb[ctx.author.id]}, Количество самовыпилов: {id}')
+                for i in range(int(id)):
+                    string = muip_client(uid=userdb[ctx.author.id], msg=f'kill self')
+                    res = json.loads(string)
+                    if res['msg'] == 'recv from nodeserver timeout':
+                        await ctx.send('Войди в гашиш инфаркт чтобы получить пиздюлей')
+                        break
+                    await ctx.send(f'Боги дали тебе пизды номер {i + 1}')
+            else:
+                await ctx.send(f'Минимум 4 раза')
+        else:
+            await ctx.send('Такой команды не существует.')
+    else:
+        await ctx.send('Ваш дискорд аккаунт не привязан к аккаунту GIO. Обратитесь к администратору.')
+
+
+
+def insert_returns(body):
+    # insert return stmt if the last expression is a expression statement
+    if isinstance(body[-1], ast.Expr):
+        body[-1] = ast.Return(body[-1].value)
+        ast.fix_missing_locations(body[-1])
+
+    # for if statements, we insert returns into the body and the orelse
+    if isinstance(body[-1], ast.If):
+        insert_returns(body[-1].body)
+        insert_returns(body[-1].orelse)
+
+    # for with blocks, again we insert returns into the body
+    if isinstance(body[-1], ast.With):
+        insert_returns(body[-1].body)
+
+
+@bot.command()
+@commands.is_owner()
+async def eval_fn(ctx, *, cmd):
+    """Evaluates input.
+    Input is interpreted as newline seperated statements.
+    If the last statement is an expression, that is the return value.
+    Usable globals:
+      - `bot`: the bot instance
+      - `discord`: the discord module
+      - `commands`: the discord.ext.commands module
+      - `ctx`: the invokation context
+      - `__import__`: the builtin `__import__` function
+    Such that `>eval 1 + 1` gives `2` as the result.
+    The following invokation will cause the bot to send the text '9'
+    to the channel of invokation and return '3' as the result of evaluating
+    >eval ```
+    a = 1 + 2
+    b = a * 2
+    await ctx.send(a + b)
+    a
+    ```
+    """
+    fn_name = "_eval_expr"
+
+    cmd = cmd.strip("` ")
+
+    # add a layer of indentation
+    cmd = "\n".join(f"    {i}" for i in cmd.splitlines())
+
+    # wrap in async def body
+    body = f"async def {fn_name}():\n{cmd}"
+
+    parsed = ast.parse(body)
+    body = parsed.body[0].body
+
+    insert_returns(body)
+
+    env = {
+        'bot': ctx.bot,
+        'discord': discord,
+        'commands': commands,
+        'ctx': ctx,
+        '__import__': __import__
+    }
+    exec(compile(parsed, filename="<ast>", mode="exec"), env)
+
+    result = (await eval(f"{fn_name}()", env))
+    await ctx.send(result)
+
+
+@bot.command()
+async def avatar(ctx, member: discord.Member = None):
+    if member is None:
+        member = ctx.author
+    embed = discord.Embed(title=f"Аватар пользователя {member.name}", color=discord.Color.blue())
+    embed.set_image(url=member.avatar)
+    await ctx.send(embed=embed)
+
+class Buttons(discord.ui.View):
+    def __init__(self, *, timeout=180):
+        super().__init__(timeout=timeout)
+    @discord.ui.button(label="Button",style=discord.ButtonStyle.gray)
+    async def gray_button(self, interaction: discord.Interaction, button: discord.ui.button):
+        await interaction.response.edit_message(content=f"This is an edited button response!")
+
+@bot.command()
+@commands.is_owner()
+async def bash(ctx, *args):
+    args = ' '.join(args)
+    if ctx.author.id == 1049305290526445579:
+        command = args
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        output = result.stdout.strip() if result.stdout else result.stderr.strip()
+        parts = [output[i:i+2000] for i in range(0, len(output), 2000)]
+        for i in parts:
+            await ctx.send(str(i))
+
+@bot.command()
+async def button(ctx):
+    await ctx.send("This message has buttons!",view=Buttons())
+
+@bot.event
+async def on_ready():
+    print(f'Бот {bot.user} успешно подключился к серверу')
+    await bot.change_presence(activity=discord.Streaming(name="Genshin Impact Offline", url="https://twitch.tv/grasscutter"))
+
+
+bot.run(token[1])
