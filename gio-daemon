@@ -1,0 +1,34 @@
+#!/bin/python3
+import subprocess
+import os
+import time
+import docker
+
+
+containers = ["58dfe4348874", "dd228baccbca", "0e22ef8ef419", "99b5620f70a7", "92ecf2636ba3", "0386ee595735",
+              "40aec6dc442a", "37d7f73173fb", "ad4d3b0fbf63", "8f3c08b2ecdb", "4828d8fced33", "68ac1ea870a4"]
+
+result = subprocess.run("whoami", shell=True, capture_output=True, text=True)
+output = result.stdout.strip() if result.stdout else result.stderr.strip()
+
+
+if output != "root":
+    print('Эту команду можно выполнить только от имени Root')
+else:
+    os.system('zerotier-one -d &')
+    os.system('dockerd &')
+    while True:
+        try:
+            client = docker.from_env()
+            for container_id in containers:
+                container = client.containers.get(container_id)
+                # print(f"{container.name} {container.status}")
+                if container.status != "running":
+                    os.system("""
+                    cd /home/mrmoder/genshin-impact-offline/server-docker-configs/3.2_dev/
+                    pwd
+                    ./start.sh
+                    """)
+        except Exception as e:
+            print(f"Ошибка: {e}")
+        time.sleep(20)
