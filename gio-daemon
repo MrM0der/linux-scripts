@@ -17,6 +17,7 @@ def get_container_id(name):
 gio_docker_names = ['32_dev-redis-1', '32_dev-mysql-1', '32_dev-sdk-1', '32_dev-adminer-1', '32_dev-dispatch-1', '32_dev-phpmyadmin-1',
                     '32_dev-nodeserver-1', '32_dev-dbgate-1', '32_dev-gateserver-1', '32_dev-multiserver-1', '32_dev-muipserver-1', '32_dev-gameserver-1']
 containers = []
+NyakaChan = True
 
 
 result = subprocess.run("whoami", shell=True, capture_output=True, text=True)
@@ -71,4 +72,8 @@ else:
                     ./start.sh
                     """)
         time.sleep(20)
+        if NyakaChan == True:
+            os.system(
+                'python3 /home/mrmoder/genshin-impact-offline/NyakaChan/main.py &')
+            NyakaChan = False
         containers.clear()
