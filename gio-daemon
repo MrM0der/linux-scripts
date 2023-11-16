@@ -3,6 +3,7 @@ import subprocess
 import os
 import time
 import docker
+from threading import Thread
 
 
 def get_container_id(name):
@@ -12,6 +13,13 @@ def get_container_id(name):
         if container.name == name:
             return container.id[:12]
     return None
+
+
+def NyakaStarter():
+    print('Вход в NyakaStarter')
+    while True:
+        os.system('python3 /home/mrmoder/genshin-impact-offline/NyakaChan/main.py')
+        time.sleep(20)
 
 
 gio_docker_names = ['32_dev-redis-1', '32_dev-mysql-1', '32_dev-sdk-1', '32_dev-adminer-1', '32_dev-dispatch-1', '32_dev-phpmyadmin-1',
@@ -54,7 +62,7 @@ else:
             client = docker.from_env()
             for i in gio_docker_names:
                 containers.append(get_container_id(i))
-            print(containers)
+            # print(containers)
             for container_id in containers:
                 container = client.containers.get(container_id)
                 # print(f"{container.name} {container.status}")
@@ -73,7 +81,7 @@ else:
                     """)
         time.sleep(20)
         if NyakaChan == True:
-            os.system(
-                'python3 /home/mrmoder/genshin-impact-offline/NyakaChan/main.py &')
+            th = Thread(target=NyakaStarter)
+            th.start()
             NyakaChan = False
         containers.clear()
