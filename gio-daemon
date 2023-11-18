@@ -70,14 +70,14 @@ else:
                     os.system("""
                     cd /home/mrmoder/genshin-impact-offline/server-docker-configs/3.2_dev/
                     pwd
-                    ./start.sh
+                    nice -n 19 ./start.sh
                     """)
         except Exception as e:
             print(f"Ошибка: {e}")
             os.system("""
                     cd /home/mrmoder/genshin-impact-offline/server-docker-configs/3.2_dev/
                     pwd
-                    ./start.sh
+                    nice -n 19 ./start.sh
                     """)
         time.sleep(20)
         if NyakaChan == True:
