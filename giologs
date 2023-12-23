@@ -1,7 +1,6 @@
 #!/bin/python3
 import docker
 from threading import Thread
-from discord_webhook import DiscordWebhook
 client = docker.from_env()
 
 def dockerlogs(container_id):
