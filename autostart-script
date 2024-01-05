@@ -8,7 +8,7 @@ def run_program(program):
         os.system(program)
 
 # Список программ для запуска
-programs = ["opera-proxy", "audiosource run"]
+programs = ["opera-proxy"]
 
 # Создание потоков для каждой программы
 threads = []
