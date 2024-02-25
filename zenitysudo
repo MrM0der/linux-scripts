@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Используем команду, переданную в качестве аргумента
+command=$@
+
+# Запрашиваем пароль через диалоговое окно zenity
+password=$(zenity --password --title="Введите пароль")
+
+# Выполняем команду с sudo
+echo $password | sudo -i $command
